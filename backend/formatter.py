@@ -1,9 +1,10 @@
 import cassiopeia
-import threading
+from multiprocessing import Process, Pool
 import time
 import os
 import numpy as np
 import database
+import tqdm
 
 db = database.database()
 
@@ -12,6 +13,9 @@ def formatPerformances(gameIds, region):
     toRet = []
     thrs = []
     first_thread = True
+    pool = Pool(10)
+    arglist = []
+
     for gameId in gameIds:
         if "_" not in gameId:
             if region.value == "EUW":
@@ -19,17 +23,19 @@ def formatPerformances(gameIds, region):
             else:
                 gameId = region.value + "_" + gameId
 
-        thr = threading.Thread(target=formatGame, args=(gameId, toRet, region))
-        thrs.append(thr)
-        thr.start()
+        args=(gameId, toRet, region)
+        arglist.append(args)
+
         if first_thread:
             print("Sleeping, making calls")
             time.sleep(10)
             first_thread = False
-
-    for thr in thrs:
-        thr.join()
-    return toRet
+    formatGame(arglist[0])
+    result = []
+    for x in tqdm.tqdm(pool.imap_unordered(formatGame, arglist), total=len(arglist)):
+        result += x
+        #print(len(result))
+    return result
 
 
 def vstack(prev, to_add):
@@ -39,34 +45,42 @@ def vstack(prev, to_add):
 def formatSummaries(gameIds, region):
     items = cassiopeia.Items(region=region)
     for item in items:
-        print(item.gold.total)
         assert hasattr(item, "gold")
     toRet = []
     thrs = []
     first_thread = True
+    arglist = []
     for gameId in gameIds:
         if "_" not in gameId:
-            gameId = region.value + "1_" + gameId
+            if region.value == "EUW":
+                gameId = region.value + "1_" + gameId
+            else:
+                gameId = region.value + "_" + gameId
 
-        thr = threading.Thread(target=formatGameSummary, args=(gameId, toRet, region, items))
-        thrs.append(thr)
-        thr.start()
+        #thr = Process(target=formatGameSummary, args=(gameId, toRet, region, items), daemon=True)
+        args=(gameId, toRet, region)
+        arglist.append(args)
         if first_thread:
             print("Sleeping, making calls")
             time.sleep(10)
             first_thread = False
 
-    for thr in thrs:
-        thr.join()
+    formatGameSummary(arglist[0])
+    result = []
+    pool = Pool(10)
+    print(arglist[0])
+    for x in tqdm.tqdm(pool.imap_unordered(formatGameSummary, arglist), total=len(arglist)):
+        result += x
+        # print(len(result))
+    return result
 
-    return toRet
 
-
-def formatGame(gameId, buffer, region):
+def formatGame(params):
+    gameId, buffer, region = params
     try:
         match = db.get_match(gameId, region)
-        if not match.version.startswith("12.1"):
-            return None
+        #if not match.version.startswith("12.3"):
+        #    return None
         toRet = []
 
         if (match.duration * 1000).seconds > 15 * 60:
@@ -109,6 +123,9 @@ def formatGame(gameId, buffer, region):
                 muchamp = participant.matchup.champion.name if participant.matchup is not None else ""
 
                 patch = match.version.split(".")[0] + "." + match.version.split(".")[1]
+                passive_value = 0
+                if participant.champion.name == "Ornn":
+                    passive_value = 1000 * (participant.stats.level - 13)
                 perfRow = [match.id, match.region.value, (match.creation.timestamp / 86400) + 25569.00,
                            patch, (match.duration * 1000).seconds,
                            participant.summoner.name,
@@ -118,7 +135,7 @@ def formatGame(gameId, buffer, region):
                            participant.stats.deaths / ennemy_team.total_deaths,
                            participant.stats.total_damage_dealt_to_champions / ennemy_team.total_dmg,
                            participant.stats.total_damage_taken / ennemy_team.total_dmg,
-                           participant.stats.gold_spent / ennemy_team.total_golds,
+                           (participant.stats.gold_spent + passive_value) / ennemy_team.total_golds,
                            participant.stats.total_heal / ennemy_team.total_dmg,
                            participant.stats.damage_self_mitigated / ennemy_team.total_dmg,
                            participant.stats.total_minions_killed / ennemy_team.total_golds,
@@ -129,7 +146,7 @@ def formatGame(gameId, buffer, region):
                            participant.champion.name + "-" + position + "-" + patch]
                 toRet.append(perfRow)
         buffer += toRet
-        print(match.id)
+        #print(match.id)
     except Exception as e:
         print(e)
         print(region)
@@ -139,14 +156,17 @@ def formatGame(gameId, buffer, region):
     return toRet
 
 
-def formatGameSummary(gameId, buffer, region, cass_items):
+def formatGameSummary(params):
+    gameId, buffer, region = params
+    cass_items = cassiopeia.Items(region=region)
     try:
         toRet = []
         match = db.get_match(gameId, region)
-        if not match.version.startswith("12.1"):
-            return None
+        #if not match.version.startswith("12.3"):
+        #    return None
         if (match.duration * 1000).seconds > 15 * 60:
             for participant in match.participants:
+                participant.matchup = None
                 for p in match.participants:
                     # pprint.pprint(p.to_dict())
                     if p.individual_position != "INVALID" and p.team_position == participant.team_position and p.summoner.name != participant.summoner.name:
@@ -206,17 +226,16 @@ def getBuildFormatted(participant: cassiopeia.core.match.Participant, items_cass
                         if item.name not in items_ordered and len(items_ordered) <= 6:
                             items_ordered.append(item.name)
                     if (
-                            event.type == "ITEM_SOLD" or event.type == "ITEM_DESTROYED" or event.type == "ITEM_UNDO") and item.name != "Manamune":
-                        if item.name in items_ordered:
+                            event.type == "ITEM_SOLD" or event.type == "ITEM_DESTROYED" or event.type == "ITEM_UNDO") and item.name != "Manamune" and participant.champion.name != "Viego" and len(
+                        items_ordered) > 0:
+                        if item.name == items_ordered[len(items_ordered) - 1]:
                             items_ordered.remove(item.name)
-                            if participant.summoner.name == "Veecto" and participant.champion.name == "Viego":
-                                print(item.name + " sold", items_ordered)
                     if event.type == "ITEM_PURCHASED" and 'Boots' in item.tags:
                         boots = item.name
                     # if event.type == "ITEM_SOLD" or event.type == "ITEM_DESTROYED" or event.type == "ITEM_UNDO" and 'Boots' in item.tags and item.name == boots:
                     #    boots = ""
         except Exception as e:
-            print(e)
+            print("Build error" + str(e))
     if len(items_ordered) > 6:
         items_ordered = items_ordered[0:6]
     while len(items_ordered) < 6:

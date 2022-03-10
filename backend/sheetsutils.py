@@ -18,7 +18,7 @@ if os.path.exists('token.json'):
     service = build('sheets', 'v4', credentials=creds)
 # If there are no (valid) credentials available, let the user log in.
 if not creds or not creds.valid:
-    if False:
+    if creds and creds.expired and creds.refresh_token:
         creds.refresh(Request())
     else:
         flow = InstalledAppFlow.from_client_secrets_file(
@@ -41,7 +41,7 @@ def col_to_letter(col):
     return r
 
 
-def insertAndWrite(service, content, sheetgid, spreadsheetid, sheetname):
+def insertAndWrite(service, content, sheetgid, spreadsheetid, sheetname, inserted=False):
     # print(content)
     body = {"requests": [
         {
@@ -58,10 +58,12 @@ def insertAndWrite(service, content, sheetgid, spreadsheetid, sheetname):
     ]
     }
     try:
-        # service.spreadsheets().batchUpdate(
-        #    spreadsheetId=spreadsheetid,
-        #    body=body).execute()
-
+        if not inserted:
+            service.spreadsheets().batchUpdate(spreadsheetId=spreadsheetid, body=body).execute()
+            inserted = True
+    except socket.timeout:
+        inserted = True
+    try:
         body = {
             'values': content
         }
@@ -74,15 +76,18 @@ def insertAndWrite(service, content, sheetgid, spreadsheetid, sheetname):
         import time
         print("Trying again in 900 seconds")
         time.sleep(900)
-        insertAndWrite(service, content, sheetgid, spreadsheetid, sheetname)
+        insertAndWrite(service, content, sheetgid, spreadsheetid, sheetname, inserted)
 
 
 def map_dict(dict):
     toRet = []
     for key in dict.keys():
-        if not np.isnan(dict[key][0]):
+        if not np.isnan(dict[key][0]) and not np.isinf(dict[key][0]):
             row = [key] + dict[key]
-
+            toRet.append(row)
+        else:
+            dict[key][0] = ""
+            row = [key] + dict[key]
             toRet.append(row)
     return toRet
 

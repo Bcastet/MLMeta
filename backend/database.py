@@ -2,6 +2,7 @@ import os
 import cassiopeia
 import pickle
 import json
+import time
 
 
 class database():
@@ -10,6 +11,29 @@ class database():
         self.db_settings = database_settings()
         self.files_opened = {}
 
+        cass_settings = {
+            "global": {
+                "version_from_match": "patch",
+                "default_region": "EUW"
+            },
+            "plugins": {},
+            "pipeline": {
+                "Cache": {},
+                "DDragon": {},
+                "RiotAPI": {
+                    "api_key": "RIOT_API_KEY"
+                }
+            },
+            "logging": {
+                "print_calls": False,
+                "print_riot_api_key": True,
+                "default": "WARNING",
+                "core": "WARNING"
+            }
+        }
+        cassiopeia.apply_settings(cass_settings)
+        cassiopeia.set_riot_api_key("RGAPI-de025284-d4e8-4500-8131-5f72a5152abd")
+
     def get_match(self, match_id, region):
         matchpath = os.path.join(self.dbpath, match_id + ".cass")
         if match_id in self.files_opened.keys():
@@ -17,12 +41,12 @@ class database():
 
         if os.path.exists(matchpath):
             try:
-                print(match_id + ".cass found in database, no call needed")
+                # print(match_id + ".cass found in database, no call needed")
                 match = pickle.load(open(matchpath, "rb"))
                 self.files_opened[match_id] = match
                 return match
             except (UnicodeDecodeError, EOFError) as e:
-                print(str(e) + "for file "+matchpath)
+                print(str(e) + "for file " + matchpath)
                 match = self.request_match(match_id, region, matchpath)
         else:
             match = self.request_match(match_id, region, matchpath)
@@ -36,10 +60,14 @@ class database():
 
     def request_match(self, match_id, region, matchpath):
         match = cassiopeia.get_match(match_id, region=region)
-        timeline = match.timeline.frames()
+        try:
+            timeline = match.timeline.frames
+        except:
+            time.sleep(10)
+            return self.request_match(match_id, region, matchpath)
+            #raise Exception("No timeline found in match", match_id, region)
         self.write_match(match, matchpath)
         return match
-
 
 
 class database_settings():
@@ -57,4 +85,4 @@ class database_settings():
 
     def write_new_json(self):
         with open(self.settings_file, "w+") as s:
-            json.dump(self.json,s)
+            json.dump(self.json, s)
