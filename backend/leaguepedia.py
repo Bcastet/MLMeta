@@ -80,7 +80,7 @@ def get_cassmatch(versionId, buffer=None, matchSummary=None):
 def requestScoutedLeaguesGames(date, scoutedLeagues):
     toRet = []
     where = "MSG.RiotPlatformGameId!='' AND SG.DateTime_UTC>'" + date.format(
-        'YYYY-MM-dd HH:mm:ss') + "' AND ("
+        'YYYY-MM-DD HH:mm:ss') + "' AND ("
     for leagueI in scoutedLeagues:
         where += "(SG.OverviewPage LIKE '%" + leagueI + "%')"
         if leagueI != scoutedLeagues[len(scoutedLeagues) - 1]:
@@ -148,8 +148,8 @@ def requestLPLGames(date):
     toRet = []
     site = mwclient.Site('lol.fandom.com', path='/')
     where = "MSG.MatchHistory!='' AND SG.DateTime_UTC>'" + date.format(
-        'YYYY-MM-dd HH:mm:ss') + "' AND (SG.OverviewPage LIKE '%LPL/%' )"
-    #where += "OR SG.OverviewPage LIKE '%LDL/%')"
+        'YYYY-MM-DD HH:mm:ss') + "' AND (SG.OverviewPage LIKE '%LPL/%' )"
+    # where += "OR SG.OverviewPage LIKE '%LDL/%')"
     response = site.api("cargoquery",
                         limit=150,
                         tables="ScoreboardGames=SG,MatchScheduleGame=MSG,PicksAndBansS7=PB",
@@ -166,7 +166,7 @@ def requestLPLGames(date):
     for thr in thrs:
         thr.join()
     print(len(response['cargoquery']), len(toRet))
-    assert len(response['cargoquery']) >= len(toRet) -1
+    assert len(response['cargoquery']) >= len(toRet) - 1
 
     if len(response['cargoquery']) == 150:
         most_recent_game = response['cargoquery'][149]["title"]["DateTime UTC"]
@@ -258,7 +258,7 @@ def formatCompetitiveGame(matchSummary, buffer):
                            participant.to_dict()["summonerName"],
                            matchSummary[participant.side.name.capitalize()], opponents,
                            participant.side.name.capitalize(), position,
-                           participant.champion.name
+                           participant.champion.key
                            ]
                 perfRow += [rune.name for rune in participant.runes]
                 perfRow += [perk.name for perk in participant.stat_runes]
@@ -335,14 +335,14 @@ def formatLPLGame(game):
             else:
                 opponents = game["Blue"]
 
-            #formatting here
+            # formatting here
             perfRow = [game["GameId"], game["GameId"].split("/")[0],
                        game["DateTime UTC"],
                        game["Patch"], LPLjson["gameTime"],
                        participant["playerName"], game[participant["side"]], opponents,
                        participant["side"], lplrolemap[participant["playerLocation"]],
-                       cassiopeia.Champion(id=participant["heroId"], region="EUW").name]
-
+                       cassiopeia.Champion(id=participant["heroId"], region="EUW").key]
+            print([rune["runeId"] for rune in participant["perkRunes"]])
             perfRow += [cassiopeia.Rune(id=rune["runeId"], region="EUW").name for rune in participant["perkRunes"]]
             perfRow += [cassiopeia.Champion(id=p["heroId"], region="EUW").name for p in team["playerInfos"]]
             perfRow += [cassiopeia.Champion(id=p["heroId"], region="EUW").name for p in ennemy_team["playerInfos"]]
@@ -374,25 +374,59 @@ def formatLPLGame(game):
     return toRet
 
 
-def format_game_summary(matchSummary):
-    headers = [
-        matchSummary["GameId"],
-        matchSummary["GameId"][0:3],
-        matchSummary["Patch"],
-        matchSummary["DateTime UTC"],
-        matchSummary["MatchHistory"].duration,
-        matchSummary["Blue"],
-        matchSummary["Red"]
-    ]
+def post_ratings(ratings):
+    request_type = "POST"
+    data = {}
+    api_url = "http://127.0.0.1:8000/ratings/"
+    for row in ratings:
+        #print(row)
+        if row[1] != "":
+            data = {"id": row[0], "rel_rate": row[1], "games": row[2], "winrate": row[3], "name": row[0].split("-")[0],
+                    "role": row[0].split("-")[1], "patch": row[0].split("-")[2]}
+            #print(data)
+            response = requests.request(request_type, api_url, data=data)
+            #print(response)
+            if response.status_code == 200:
+                raise Exception(response.content)
+
+
+def post_game_contents(ratings):
+    request_type = "POST"
+    columns = ["gameid", "league", "date", "patch", "duration", "player", "team1", "team2", "side", "role", "champion",
+               "keystone", "rune1", "rune2", "rune3", "rune4", "rune5", "statrune1", "statrune2",
+               "statrune3", "ally1", "ally2", "ally3", "ally4", "ally5", "ennemy1", "ennemy2", "ennemy3", "ennemy4",
+               "ennemy5", "item1", "item2", "item3", "item4", "item5", "item6", "boots", "trinket", "summoner1",
+               "summoner2", "relativeKills", "relativeDeaths", "relativeDamages", "relativeDamageTaken", "relativeGolds",
+               "relativeDmgHealed", "relativeDmgMitigated", "relativeMinionsKilled", "relativeWardsPlaced",
+               "relativeWardsKilled", "relativeLevel", "relativeCCtime", "performance", "outcome",
+               "relative_performance"]
+    api_url = "http://127.0.0.1:8000/competitiveGames/"
+    for row in ratings:
+        #print(row)
+        if row[1] != "":
+            data = dict(zip(columns, row))
+            data["day"] = data["date"][0:10]
+            #print(data)
+            response = requests.request(request_type, api_url, data=data)
+            #print(response.content)
+
+
+def map_dict(dict):
     toRet = []
-    for participant in matchSummary["MatchHistory"].participants:
-        row = headers
+    for key in dict.keys():
+        if not np.isnan(dict[key][0]) and not np.isinf(dict[key][0]):
+            row = [key] + dict[key]
+            toRet.append(row)
+        else:
+            dict[key][0] = ""
+            row = [key] + dict[key]
+            toRet.append(row)
+    return toRet
 
 
 if __name__ == '__main__':
     print("Starting")
     import arrow
-    from sheetsutils import insertAndWrite, service, map_dict
     from mlrating import *
 
     date = arrow.get('2022-01-01T00:00:00.000000+00:00')
@@ -403,7 +437,9 @@ if __name__ == '__main__':
     for game in lpl_games:
         content += formatLPLGame(game)
     # "LFL_Division_2"
-    scouted_leagues = ["LEC/", "LCK/", "LFL/", "LCS/", "LVP_SuperLiga/", "LCK_CL/"]
+
+    scouted_leagues = ["LEC/", "LCK/", "LFL/", "LCS/", "LVP_SuperLiga/", "LCK_CL/", "LFL_Division_2/",
+                       "European_Masters/", "Ultraliga/", "Prime_League_Pro_Division/", "NLC/", "TCL/"]
     games = requestScoutedLeaguesGames(date, scouted_leagues)
 
     games.sort(key=lambda game: game["DateTime UTC"])
@@ -421,10 +457,22 @@ if __name__ == '__main__':
 
     def formatIndivPerfs(ratings):
         for rating in ratings:
+            performance_in_wins = np.mean(rating.performances[np.where(rating.wins == 1)])
+            performance_in_losses = np.mean(rating.performances[np.where(rating.wins == 0)])
+            #print(rating.champion, performance_in_wins, performance_in_losses)
+            relative_performance = rating.performances
+            #print(rating.wins)
+            #print(relative_performance[rating.wins == 1.])
+            relative_performance = np.where(rating.wins > 0.5, relative_performance - performance_in_wins,
+                                            relative_performance - performance_in_losses)
+            #print(rating.performances)
+            #print(relative_performance)
             try:
-                toRet = np.vstack([toRet, np.c_[rating.games[:, 0:40], rating.performances, rating.wins]])
+                toRet = np.vstack([toRet, np.c_[
+                    rating.games[:, 0:40], np.transpose(rating.values), rating.performances, rating.wins, relative_performance]])
             except:
-                toRet = np.c_[rating.games[:, 0:40], rating.performances, rating.wins]
+                toRet = np.c_[
+                    rating.games[:, 0:40], np.transpose(rating.values), rating.performances, rating.wins, relative_performance]
         return toRet
 
 
@@ -432,21 +480,7 @@ if __name__ == '__main__':
     content = content[content[:, 2].argsort()]
     content = np.flipud(content)
     content = content.tolist()
+    # pprint.pp(rrates)
 
-    insertAndWrite(service, rrates, 0, "1WuSINK6z52qaIdh7GEEMQ9oOpIB_YcYrQYJxlwKrsLg", "Champions Ratings")
-    insertAndWrite(service, content, 909719190, "1WuSINK6z52qaIdh7GEEMQ9oOpIB_YcYrQYJxlwKrsLg", "Game Summaries")
-
-    for rating in ratings:
-        if "JUNGLE" in rating.champion:
-            print(rating.champion, len(rating.games))
-            print("Correls", rating.correls)
-            print("Avg", rating.averages)
-            print("Stds", rating.sds)
-            if rating.champion == "Trundle-JUNGLE-12.1":
-                for r in ratings:
-                    print(r.correls[0], r.correls[0] != np.nan)
-                    if rating.role == r.role and r.patch == rating.patch and not np.isnan(r.correls[0]):
-                        rrate = r.compare_champion(rating)
-                        print(r.champion, rrate)
-                        if not np.isnan(rrate):
-                            rrates = np.append(rrates, rrate)
+    post_ratings(rrates)
+    post_game_contents(content)

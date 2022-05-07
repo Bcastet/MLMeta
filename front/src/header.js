@@ -1,10 +1,10 @@
 import React from 'react';
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
-import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
-import {makeStyles} from "@material-ui/core/styles";
 import Box from '@material-ui/core/Box';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 
 
 export default function Header() {

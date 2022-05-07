@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
 import collections
-from leaguepedia import *
+
+
+# from leaguepedia import *
 
 class championRatings():
     def __init__(self, champion, correls, averages, sds, values, wins, games):
@@ -20,6 +22,7 @@ class championRatings():
     """
     calculates the performance column.
     """
+
     def getPerformances(self):
         columns = np.array([])
         for axis in range(self.parameters):
@@ -49,6 +52,7 @@ class championRatings():
         return np.column_stack([self.games[:][:headers], self.performances, self.wins])
 
     """champion compared is the column, self is the row"""
+
     def compare_champion(self, champion_compared):
         if self.champion == "Lux-UTILITY-11.24":
             print(champion_compared.champion)
@@ -77,23 +81,26 @@ class championRatings():
     def get_games_amount(self):
         return len(self.wins)
 
+
 """
 calculates all the champions ratings for separated games.
 Must give the number of metrics used (parameters) and the number of headers for each row.
 """
+
+
 def get_champions_ratings(separated_games, parameters=12, headers=12):
     toRet = []
     for champion_role_patch in separated_games.keys():
         try:
             # print(separated_games[champion_role_patch][:, 12+parameters])
-            wins = separated_games[champion_role_patch][:, parameters + headers].astype(np.float)
+            wins = separated_games[champion_role_patch][:, parameters + headers].astype(float)
             correls = np.array([])
             averages = np.array([])
             sds = np.array([])
             values = []
 
             for variable_type in range(parameters):
-                vrows = separated_games[champion_role_patch][:, headers + variable_type].astype(np.float)
+                vrows = separated_games[champion_role_patch][:, headers + variable_type].astype(float)
                 vrows_filtered = vrows[np.logical_not(np.isnan(vrows))]
                 wins_filtered = wins[np.logical_not(np.isnan(vrows))]
                 correl = np.corrcoef(vrows_filtered, wins_filtered)[0][1]
@@ -111,10 +118,13 @@ def get_champions_ratings(separated_games, parameters=12, headers=12):
             pass
     return toRet
 
+
 """
 calculate the relative rating of a champion compared to a set.
 will only compare 2 champions if they have the same role and patch.
 """
+
+
 def get_champion_rrate(champion, ratings):
     rrates = np.array([])
     for rating in ratings:
@@ -124,10 +134,13 @@ def get_champion_rrate(champion, ratings):
                 rrates = np.append(rrates, rrate)
     return np.average(rrates)
 
+
 """
 calculate the rating of every champion for a given set.
 will only compare 2 champions if they have the same role and patch.
 """
+
+
 def get_many_champions_rrate(ratings):
     rrates = {}
     for rating in ratings:
@@ -139,6 +152,8 @@ def get_many_champions_rrate(ratings):
 separate games list into a dict where every game is identified with his champion:
 {"Gragas":[game1;game2...]}
 """
+
+
 def separateGames(formattedGames, roleIndex=8):
     toRet = {}
     for game in formattedGames:
@@ -153,6 +168,8 @@ def separateGames(formattedGames, roleIndex=8):
 """ 
 calculates rrates and game_summaries from the given set of acs_games and lpl_games
 """
+
+
 def getCompetitiveDatabase(acs_games, lpl_games):
     import arrow
     import pprint

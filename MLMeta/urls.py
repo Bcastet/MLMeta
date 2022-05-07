@@ -19,9 +19,13 @@ from rest_framework import routers
 from backend import views
 
 router = routers.DefaultRouter()
-router.register(r'rates', views.ChampionRatingView, 'championRating')
+router.register(r'ratings', views.ChampionRatingView, 'championRating')
+router.register(r'soloQgames', views.SoloQMatchPerformanceView, 'soloQgamessummaries')
+router.register(r'competitiveGames', views.CompetitiveMatchPerformanceView, 'competitiveGamesSummaries')
+router.register(r'teamImages', views.TeamImagesView, 'teamImages')
+router.register(r'ChampionsBuildProperties', views.ChampionsBuildPropertiesView, 'ChampionsBuildProperties')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
 ]
