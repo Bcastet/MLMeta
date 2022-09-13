@@ -8,10 +8,12 @@ import threading
 from mwrogue import esports_client
 import numpy as np
 
+
 site = mwclient.Site('lol.fandom.com', path='/')
 client = esports_client.EsportsClient('lol')
 id_to_role = [None, "TOP_LANE", "JUNGLE", "MID_LANE", "BOT_LANE", "UTILITY", "TOP_LANE", "JUNGLE", "MID_LANE",
               "BOT_LANE", "UTILITY"]
+files_loc = "E:/CompGamesDb/"
 
 
 def get_request(query, headers=None):
@@ -43,14 +45,24 @@ def get_request(query, headers=None):
 def get_cassmatch(versionId, buffer=None, matchSummary=None):
     version, riotPlatformGameId = versionId
     try:
-        jsonMatch, jsonTimeline = client.get_data_and_timeline(riotPlatformGameId, version)
-    except:
+        #print(matchSummary)
+        jsonMatch, jsonTimeline = json.load(open(files_loc + matchSummary["title"]["GameId"].replace("/","_")+".json"+".json"))
+    except FileNotFoundError:
         try:
-            jsonMatch, jsonTimeline = client.get_data_and_timeline(riotPlatformGameId, 4)
+            jsonMatch, jsonTimeline = client.get_data_and_timeline(riotPlatformGameId, version)
         except:
-            pprint.pp(matchSummary)
-            print(matchSummary["title"]["Blue"] + " vs " + matchSummary["title"]["Red"] + "could not load properly")
-            raise Exception
+            try:
+                try:
+                    jsonMatch, jsonTimeline = client.get_data_and_timeline(riotPlatformGameId, 4)
+                except:
+                    jsonMatch, jsonTimeline = client.get_data_and_timeline(riotPlatformGameId, 5)
+            except Exception as e:
+                pprint.pp(matchSummary)
+                print(matchSummary["title"]["Blue"] + " vs " + matchSummary["title"]["Red"] + "could not load properly")
+                raise e
+    import os
+    if not os.path.exists(files_loc + matchSummary["title"]["GameId"].replace("/","_")+".json"+".json"):
+        open(files_loc + matchSummary["title"]["GameId"].replace("/","_")+".json", "w+").write(json.dumps([jsonMatch, jsonTimeline]))
 
     jsonMatch["platformId"] = "EUW1"
     match = cassiopeia.core.match.MatchData(**jsonMatch)
@@ -92,7 +104,7 @@ def requestScoutedLeaguesGames(date, scoutedLeagues):
                         limit=150,
                         tables="ScoreboardGames=SG,MatchScheduleGame=MSG,PicksAndBansS7=PB",
                         where=where,
-                        fields="MSG.RiotVersion,MSG.MatchHistory,MSG.RiotPlatformGameId,MSG.RiotHash,PB.Team1Ban1,PB.Team1Ban2,PB.Team1Ban3,PB.Team1Ban4,PB.Team1Ban5,PB.Team2Ban1,PB.Team2Ban2,PB.Team2Ban3,PB.Team2Ban4,PB.Team2Ban5,PB.Team1Pick1,PB.Team1Pick2,PB.Team1Pick3,PB.Team1Pick4,PB.Team1Pick5,PB.Team2Pick1,PB.Team2Pick2,PB.Team2Pick3,PB.Team2Pick4,PB.Team2Pick5,PB.Team1,PB.Team2,PB.Winner,PB.Team1PicksByRoleOrder,PB.Team2PicksByRoleOrder,MSG.Blue,MSG.GameId,SG.Patch,MSG.Red,SG.DateTime_UTC",
+                        fields="MSG.GameId,MSG.RiotVersion,MSG.MatchHistory,MSG.RiotPlatformGameId,MSG.RiotHash,PB.Team1Ban1,PB.Team1Ban2,PB.Team1Ban3,PB.Team1Ban4,PB.Team1Ban5,PB.Team2Ban1,PB.Team2Ban2,PB.Team2Ban3,PB.Team2Ban4,PB.Team2Ban5,PB.Team1Pick1,PB.Team1Pick2,PB.Team1Pick3,PB.Team1Pick4,PB.Team1Pick5,PB.Team2Pick1,PB.Team2Pick2,PB.Team2Pick3,PB.Team2Pick4,PB.Team2Pick5,PB.Team1,PB.Team2,PB.Winner,PB.Team1PicksByRoleOrder,PB.Team2PicksByRoleOrder,MSG.Blue,MSG.GameId,SG.Patch,MSG.Red,SG.DateTime_UTC",
                         order_by="SG.DateTime_UTC ASC,SG.N_GameInMatch ASC",
                         join_on="SG.GameId=MSG.GameId, MSG.GameId=PB.GameId")
     thrs = []
@@ -112,7 +124,8 @@ def requestScoutedLeaguesGames(date, scoutedLeagues):
     for thr in thrs:
         thr.join()
 
-    assert len(response['cargoquery']) == len(toRet)
+    print(len(response["cargoquery"]), len(toRet))
+    assert len(response['cargoquery']) >= len(toRet)
 
     if len(response['cargoquery']) == 150:
         most_recent_game = response['cargoquery'][149]["title"]["DateTime UTC"]
@@ -252,7 +265,10 @@ def formatCompetitiveGame(matchSummary, buffer):
                     opponents = matchSummary["Blue"]
 
                 patch = match.version.split(".")[0] + "." + match.version.split(".")[1]
-                perfRow = [matchSummary["GameId"], matchSummary["GameId"].split("/")[0],
+                league = matchSummary["GameId"].split("/")[0]
+                if league==matchSummary["GameId"]:
+                    league = "MSI"
+                perfRow = [matchSummary["GameId"], league,
                            matchSummary["DateTime UTC"],
                            patch, (match.duration * 1000).seconds,
                            participant.to_dict()["summonerName"],
@@ -406,8 +422,16 @@ def post_game_contents(ratings):
         if row[1] != "":
             data = dict(zip(columns, row))
             data["day"] = data["date"][0:10]
+            for column in columns:
+                if data[column] == "nan":
+                    data[column] = ""
+
             #print(data)
             response = requests.request(request_type, api_url, data=data)
+            if response.status_code != 200 and response.status_code != 201:
+                print(response.status_code)
+                print(data)
+                raise Exception(response.reason)
             #print(response.content)
 
 
@@ -429,17 +453,19 @@ if __name__ == '__main__':
     import arrow
     from mlrating import *
 
-    date = arrow.get('2022-01-01T00:00:00.000000+00:00')
+    date = arrow.get('2022-05-08T00:00:00.000000+00:00')
+    #date = arrow.get('2022-01-01T00:00:00.000000+00:00')
+    print(date.humanize())
     content = []
 
     lpl_games = requestLPLGames(date)
-    pprint.pprint(lpl_games[0])
+    #pprint.pprint(lpl_games[0])
     for game in lpl_games:
         content += formatLPLGame(game)
     # "LFL_Division_2"
 
     scouted_leagues = ["LEC/", "LCK/", "LFL/", "LCS/", "LVP_SuperLiga/", "LCK_CL/", "LFL_Division_2/",
-                       "European_Masters/", "Ultraliga/", "Prime_League_Pro_Division/", "NLC/", "TCL/"]
+                       "European_Masters/", "Ultraliga/", "Prime_League_Pro_Division/", "NLC/", "TCL/", "Mid-Season Invitational"]
     games = requestScoutedLeaguesGames(date, scouted_leagues)
 
     games.sort(key=lambda game: game["DateTime UTC"])
@@ -480,7 +506,8 @@ if __name__ == '__main__':
     content = content[content[:, 2].argsort()]
     content = np.flipud(content)
     content = content.tolist()
+    print(content)
     # pprint.pp(rrates)
 
-    post_ratings(rrates)
+    # post_ratings(rrates)
     post_game_contents(content)

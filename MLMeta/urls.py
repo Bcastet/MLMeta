@@ -24,6 +24,7 @@ router.register(r'soloQgames', views.SoloQMatchPerformanceView, 'soloQgamessumma
 router.register(r'competitiveGames', views.CompetitiveMatchPerformanceView, 'competitiveGamesSummaries')
 router.register(r'teamImages', views.TeamImagesView, 'teamImages')
 router.register(r'ChampionsBuildProperties', views.ChampionsBuildPropertiesView, 'ChampionsBuildProperties')
+router.register(r'ChampionsMatchupsProperties', views.CompetitiveChampionMatchupsViews, 'ChampionsMatchupsProperties')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

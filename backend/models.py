@@ -150,7 +150,7 @@ class GameSummaryCompetitive(models.Model):
     performance = models.FloatField(blank=True, null=True)
     outcome = models.IntegerField()
     day = models.DateField()
-    relative_performance = models.FloatField()
+    relative_performance = models.FloatField(blank=True, null=True)
 
 
 class TeamImages(models.Model):
@@ -159,5 +159,14 @@ class TeamImages(models.Model):
 
 
 class ChampionsBuildProperties(models.Model):
+    # fill = models.IntegerField()
     keystones = models.JSONField()
     first_items = models.JSONField()
+
+
+class ChampionMatchupProperties(models.Model):
+    champion = models.CharField(max_length=120)
+    winrate = models.FloatField()
+    games = models.IntegerField()
+    performance = models.FloatField()
+    oppositePerformance = models.FloatField()

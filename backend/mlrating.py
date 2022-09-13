@@ -91,6 +91,7 @@ Must give the number of metrics used (parameters) and the number of headers for 
 def get_champions_ratings(separated_games, parameters=12, headers=12):
     toRet = []
     for champion_role_patch in separated_games.keys():
+        print(champion_role_patch)
         try:
             # print(separated_games[champion_role_patch][:, 12+parameters])
             wins = separated_games[champion_role_patch][:, parameters + headers].astype(float)

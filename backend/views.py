@@ -3,7 +3,11 @@ from rest_framework import viewsets
 from .serializers import *
 from .models import *
 from .mlrating import *
-from django.forms.models import model_to_dict
+from django.db.models import Avg, Q
+import pprint
+import cassiopeia
+from copy import deepcopy
+from django_pivot import pivot
 
 
 # Create your views here.
@@ -17,7 +21,7 @@ class ChampionRatingView(viewsets.ModelViewSet):
         patch = self.request.query_params.get("patch")
         role = self.request.query_params.get("role")
         leagues = self.request.query_params.get("leagues")
-        print(leagues)
+        #print(leagues)
         if leagues is None:
             queryset = ChampionRating.objects.all()
             if id is not None:
@@ -60,15 +64,17 @@ class ChampionRatingView(viewsets.ModelViewSet):
             separated = separateGames(content, roleIndex=9)
             ratings = get_champions_ratings(separated, parameters=12, headers=54 - 14)
             rrates = get_many_champions_rrate(ratings)
+            pprint.pprint(rrates)
 
             def map_dict(dict):
                 toRet = []
                 for key in dict.keys():
                     if not np.isnan(dict[key][0]) and not np.isinf(dict[key][0]):
                         row = [key] + dict[key]
+                        print(row)
                         toRet.append(row)
                     else:
-                        dict[key][0] = ""
+                        dict[key][0] = -1000
                         row = [key] + dict[key]
                         toRet.append(row)
                 return toRet
@@ -96,13 +102,16 @@ class TeamImagesView(viewsets.ModelViewSet):
 
 class ChampionsBuildPropertiesView(viewsets.ModelViewSet):
     serializer_class = ChampionsBuildPropertiesSerializer
-    queryset = ChampionsBuildProperties
+
+    # queryset = ChampionsBuildProperties
 
     def get_queryset(self):
         patch = self.request.query_params.get("patch")
         role = self.request.query_params.get("role")
         leagues = self.request.query_params.get("leagues")
         champion = self.request.query_params.get("champion")
+        champion = cassiopeia.Champion(name=champion, region="EUW").key
+
         if leagues is not None:
             leagues = leagues.split(",")
         queryset = GameSummaryCompetitive.objects.all()
@@ -153,9 +162,10 @@ class ChampionsBuildPropertiesView(viewsets.ModelViewSet):
             first_items[name]["performance"] = np.average(first_items[name]["performance"])
             first_items[name]["winrate"] = first_items[name]["winrate"] / first_items[name]["games"]
             first_items[name]["relative_performance"] = np.average(first_items[name]["relative_performance"])
+            first_items[name]["id"] = index
             first_items_toRet.append(first_items[name])
 
-        return [{"keystones": keystones_toRet, "first_items": first_items_toRet}]
+        return [{"keystones": keystones_toRet, "first_items": first_items_toRet, "test": "test"}]
 
 
 class CompetitiveMatchPerformanceView(viewsets.ModelViewSet):
@@ -169,6 +179,8 @@ class CompetitiveMatchPerformanceView(viewsets.ModelViewSet):
         role = self.request.query_params.get("role")
         leagues = self.request.query_params.get("leagues")
         champion = self.request.query_params.get("champion")
+
+        champion = cassiopeia.Champion(name=champion, region="EUW").key
         if leagues is not None:
             leagues = leagues.split(",")
         print(leagues)
@@ -185,3 +197,52 @@ class CompetitiveMatchPerformanceView(viewsets.ModelViewSet):
         if champion is not None:
             queryset = queryset.filter(champion=champion)
         return queryset
+
+
+class CompetitiveChampionMatchupsViews(viewsets.ModelViewSet):
+    serializer_class = ChampionMatchupPropertiesSerializer
+    queryset = GameSummaryCompetitive.objects.all()
+
+    def get_queryset(self):
+        id = self.request.query_params.get("gameid")
+        patch = self.request.query_params.get("patch")
+        role = self.request.query_params.get("role")
+        leagues = self.request.query_params.get("leagues")
+        champion = self.request.query_params.get("champion")
+        matchup_role = self.request.query_params.get("matchup_role")
+        type = self.request.query_params.get("type")
+        champion = cassiopeia.Champion(name=champion, region="EUW").key
+        if leagues is not None:
+            leagues = leagues.split(",")
+        queryset = GameSummaryCompetitive.objects.all()
+        if id is not None:
+            queryset = queryset.filter(gameid=id)
+        if patch is not None:
+            queryset = queryset.filter(patch=patch)
+        if leagues is not None:
+            queryset = queryset.filter(league__in=leagues)
+        opponents_side_queryset = deepcopy(queryset)
+        if role is not None:
+            queryset = queryset.filter(role=role)
+        if champion is not None:
+            queryset = queryset.filter(champion=champion)
+
+        matchup_column = type + str(
+            ["TOP_LANE", "JUNGLE", "MID_LANE", "BOT_LANE", "UTILITY"].index(matchup_role) + 1)
+        champ_column = type + str(["TOP_LANE", "JUNGLE", "MID_LANE", "BOT_LANE", "UTILITY"].index(role) + 1)
+        champions = queryset.values_list(matchup_column).distinct()
+        champions = [champ[0] for champ in champions]
+        rows = []
+        for index, champ in enumerate(champions):
+            champKey = cassiopeia.Champion(name=champ, region="EUW").key
+            champ_queryset = queryset.filter(**{matchup_column: champ})
+            row = {"champion": champKey, "winrate": champ_queryset.aggregate(Avg("outcome"))["outcome__avg"],
+                   "games": champ_queryset.count(),
+                   "performance": champ_queryset.aggregate(Avg("performance"))["performance__avg"]}
+            opponent_champ_queryset = opponents_side_queryset.filter(champion=champKey)
+            row["id"] = index
+
+            row["oppositePerformance"] = \
+            opponent_champ_queryset.filter(**{champ_column: champion}).aggregate(Avg("performance"))["performance__avg"]
+            rows.append(row)
+        return rows

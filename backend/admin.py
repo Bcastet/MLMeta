@@ -12,9 +12,11 @@ class MLMetaGameSummaries(admin.ModelAdmin):
 class MLMetaTeamImages(admin.ModelAdmin):
     list_display = [field.name for field in TeamImages._meta.get_fields()]
 
+class MLMetaChampionBuildProperties(admin.ModelAdmin):
+    list_display = [field.name for field in ChampionsBuildProperties._meta.get_fields()]
 
 # Register your models here.
 
 admin.site.register(ChampionRating, MLMetaAdmin)
 admin.site.register(GameSummaryCompetitive, MLMetaGameSummaries)
-admin.site.register(TeamImages, MLMetaTeamImages)
+admin.site.register(ChampionsBuildProperties, MLMetaChampionBuildProperties)

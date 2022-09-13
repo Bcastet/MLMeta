@@ -92,4 +92,37 @@ def getRunesAssets():
                         overwrite=True,
                         resource_type="image")
 
-getRunesAssets()
+def getItemsAssets():
+    cass_settings = {
+        "global": {
+            "version_from_match": "patch",
+            "default_region": "EUW"
+        },
+        "plugins": {},
+        "pipeline": {
+            "Cache": {},
+            "DDragon": {},
+            "RiotAPI": {
+                "api_key": "RIOT_API_KEY"
+            }
+        },
+        "logging": {
+            "print_calls": True,
+            "print_riot_api_key": True,
+            "default": "WARNING",
+            "core": "WARNING"
+        }
+    }
+    cassiopeia.apply_settings(cass_settings)
+    cassiopeia.set_riot_api_key("RGAPI-de025284-d4e8-4500-8131-5f72a5152abd")
+    items = cassiopeia.Items(region="EUW")
+    for item in items:
+        if "<" not in item.name:
+            item.image.image.save("C:/Users/Xenesis/Pictures/LeagueAssets/"+item.name+".png")
+            uploader.upload("C:/Users/Xenesis/Pictures/LeagueAssets/"+item.name+".png",
+                            folder="leagueAssets/",
+                            public_id=item.name,
+                            overwrite=True,
+                            resource_type="image")
+
+getTeamsLogos()

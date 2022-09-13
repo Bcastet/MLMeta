@@ -40,7 +40,7 @@ class ChampionMatchHistory extends React.Component {
         {
         const state = this.state;
         return (
-            <div style={{height: 1080, width: '32%', gap: "10px"}}>
+            <div style={{height: 800, width: '25%', gap: "10px"}}>
                 <DataGrid rowHeight={60} width={"100%"} /*getRowSpacing={{top:1,bottom:1}}*/ rowSpacingType={"none"}
                     initialState={{
                         sorting: {
@@ -71,8 +71,9 @@ class ChampionKeystoneSummary extends React.Component {
         this.state = {
             rows: [],
             params: props.params,
-            version: ""
-        }
+            version: "",
+            mythicRows : []
+        };
         this.setState = this.setState.bind(this);
     }
 
@@ -80,12 +81,14 @@ class ChampionKeystoneSummary extends React.Component {
         fetch(api_url + "ChampionsBuildProperties/?patch=" + this.props.params.patch + "&champion=" + this.props.params.champion + "&role=" + this.props.params.role + "&leagues=" + this.props.params.selectedLeagues + "&format=json").then(response => response.json()).then(data => this.setState(previousState => ({
             version: previousState.version,
             rows: data.results[0].keystones,
-            params: previousState.params
+            params: previousState.params,
+            mythicRows : previousState.mythicRows
         })));
         fetch("https://ddragon.leagueoflegends.com/api/versions.json").then(response => response.json()).then(data => this.setState(previousState => ({
             rows: previousState.rows,
             params: previousState.params,
-            version: data[0]
+            version: data[0],
+            mythicRows : previousState.mythicRows
         })));
     }
 
@@ -94,13 +97,14 @@ class ChampionKeystoneSummary extends React.Component {
             fetch(api_url + "ChampionsBuildProperties/?patch=" + this.props.params.patch + "&champion=" + this.props.params.champion + "&role=" + this.props.params.role + "&leagues=" + this.props.params.selectedLeagues + "&format=json").then(response => response.json()).then(data => this.setState(previousState => ({
                 rows: data.results[0].keystones,
                 params: prevProps.params,
-                version: previousState.version
+                version: previousState.version,
+                mythicRows : data.results[0].first_items
             })));
     }
 
     render() {
         return (
-        /*<div style={{height: "100", width: '28%', gap: "10px", position: "sticky", top: "0px"}}>*/
+        <div style={{width: '23%', gap: "10px", position: "sticky", top: "0px", height:800}}>
                 <DataGrid rowHeight={60} width={"100%"} /*getRowSpacing={{top:1,bottom:1}}*/ rowSpacingType={"none"}
                     initialState={{
                         sorting: {
@@ -116,10 +120,30 @@ class ChampionKeystoneSummary extends React.Component {
 
                     ]}
                     rows={this.state.rows}
-                    style={{height: 400, gap: "10px", top: "0px", position : "relative"}}
+                    style={{height:"50%"}}
+                    hideFooter={true}
 
                 />
-            /*</div>*/)
+                <DataGrid rowHeight={60} width={"100%"} /*getRowSpacing={{top:1,bottom:1}}*/ rowSpacingType={"none"}
+                    initialState={{
+                        sorting: {
+                          sortModel: [{ field: 'games', sort: 'desc' }],
+                        },
+                      }}
+                    columns={[
+                        {headerName : '1st item',field: 'name', width: 80, justifyContent: "center", align: "center", headerAlign: "center", renderCell : (params) => <img src={"https://res.cloudinary.com/xenesis/image/upload/v1/leagueAssets/"+params.value+".png"} width={40} height={40}/>},
+                        {field: 'games', headerName: "Games", width: 80, justifyContent: "center", align: "center", headerAlign: "center"},
+                        {headerName : 'Winrate',field: 'winrate', width: 80, justifyContent: "center", align: "center", headerAlign: "center", renderCell: (params) => params.value.toLocaleString("en", {style: "percent"})},
+                        {field: 'performance', headerName: "Perf.", width: 80, justifyContent: "center", align: "center", headerAlign: "center", renderCell: (params) => Math.round(params.value * 100) / 100},
+                        {field: 'relative_performance', headerName: "Relative", width: 80, justifyContent: "center", align: "center", headerAlign: "center", renderCell: (params) => Math.round(params.value * 100) / 100},
+
+                    ]}
+                    rows={this.state.mythicRows}
+                    style={{height:"50%",gap: "10px"}}
+                    hideFooter={true}
+
+                />
+            </div>)
     }
 }
 function formatOutcome(result){
@@ -129,7 +153,6 @@ function formatOutcome(result){
     return "Win"
 }
 
-
 function CustomToolbar() {
   return (
     <GridToolbarContainer>
@@ -137,13 +160,97 @@ function CustomToolbar() {
   );
 }
 
+class ChampionMatchups extends React.Component{
+    constructor(props) {
+        super(props);
+        this.props = props
+    }
+
+    render() {
+        return (
+            <Grid container direction={'row'} justifyContent="flex-start" alignItems="flex-end"  wrap='nowrap' style={{wrap:'nowrap', height: '100%', width:"120%"}} >
+                <ChampionMatchupsOnRole role={this.props.params.role} patch={this.props.params.patch} leagues = {this.props.params.selectedLeagues} matchupRole = {"TOP_LANE"} champion = {this.props.params.champion} type = {this.props.params.type}/>
+                <ChampionMatchupsOnRole role={this.props.params.role} patch={this.props.params.patch} leagues = {this.props.params.selectedLeagues} matchupRole = {"JUNGLE"} champion = {this.props.params.champion} type = {this.props.params.type}/>
+                <ChampionMatchupsOnRole role={this.props.params.role} patch={this.props.params.patch} leagues = {this.props.params.selectedLeagues} matchupRole = {"MID_LANE"} champion = {this.props.params.champion} type = {this.props.params.type}/>
+                <ChampionMatchupsOnRole role={this.props.params.role} patch={this.props.params.patch} leagues = {this.props.params.selectedLeagues} matchupRole = {"BOT_LANE"} champion = {this.props.params.champion} type = {this.props.params.type}/>
+                <ChampionMatchupsOnRole role={this.props.params.role} patch={this.props.params.patch} leagues = {this.props.params.selectedLeagues} matchupRole = {"UTILITY"} champion = {this.props.params.champion} type = {this.props.params.type}/>
+            </Grid>
+        )
+    }
+}
+
+class ChampionMatchupsOnRole extends React.Component {
+    constructor(props){
+        super(props);
+        this.props = props;
+        this.state = {
+            rows: [],
+            version : "",
+            leagues : props.leagues,
+            patch : props.patch
+        };
+        console.log(this.state.leagues)
+    }
+    componentDidMount() {
+        fetch(api_url + "ChampionsMatchupsProperties/?leagues="+this.state.leagues.toString()+ "&champion=" + this.props.champion +"&role="+this.props.role+"&patch="+this.props.patch+"&format=json&matchup_role="+this.props.matchupRole+"&type="+this.props.type).then(response => response.json()).then(data => this.setState(previousState =>({rows: data.results, version : previousState.version, champions : previousState.version, leagues : previousState.leagues, patch : previousState.patch})));
+        fetch("https://ddragon.leagueoflegends.com/api/versions.json").then(response => response.json()).then(data => this.setState(previousState => ({rows:previousState.rows, version:data[0], champions : previousState.version, leagues : previousState.leagues, patch : previousState.patch})));
+    }
+    componentDidUpdate(prevProps, prevState, snapshot) {
+        if (!(prevProps.leagues.toString() === this.props.leagues.toString() && prevProps.patch === this.props.patch && prevProps.champion === this.props.champion && prevProps.role === this.props.role))
+            fetch(api_url + "ChampionsMatchupsProperties/?leagues="+this.props.leagues.toString()+ "&champion=" + this.props.champion +"&role="+this.props.role+"&patch="+this.props.patch+"&format=json&matchup_role="+this.props.matchupRole+"&type="+this.props.type).then(response => response.json()).then(data => this.setState(previousState =>({rows: data.results, version : previousState.version, champions : previousState.version, leagues : previousState.leagues, patch : previousState.patch})));
+    }
+
+    render()
+    {
+        const state = this.state;
+        return (
+            <div style={{height: 1000, gap: "10px", width: '20%'}}>
+                <DataGrid rowHeight={60} width={"100%"} /*getRowSpacing={{top:1,bottom:1}}*/ rowSpacingType={"none"}
+                    initialState={{
+                        sorting: {
+                          sortModel: [{ field: 'performance', sort: 'desc' }],
+                        },
+                      }}
+                    columns={[
+                        {
+                            field: 'champion',
+                            headerName: "Champion",
+                            hideable: false,
+                            renderCell: (params) => <img src={"https://ddragon.leagueoflegends.com/cdn/"+state.version+"/img/champion/"+params.value+".png"} width="60" height="60"/>,
+                            width: 90,
+                            height: 40,
+                            align: "center",
+                            headerAlign: "center"
+                        },
+                        {headerName : 'Games',field: 'games', width: 60, justifyContent: "center", align: "center", headerAlign: "center"},
+                        {field: 'winrate', headerName: "WR", width: 60, justifyContent: "center", renderCell: (params) => params.value.toLocaleString("en", {style: "percent"}), align: "center", headerAlign: "center"},
+                        {headerName : "Performance",field: 'performance', width: 90, renderCell: (params) => formatRating(params), justifyContent: "center", align: "center", headerAlign: "center"},
+                        {headerName : "Opp. Perf.",field: 'oppositePerformance', width: 90,renderCell: (params) => formatRating(params), justifyContent: "center", align: "center", headerAlign: "center"},
+                    ]}
+                    rows={this.state.rows}
+                    components={{
+                        Toolbar: CustomToolbar,
+                    }}
+                />
+            </div>
+        );
+    }
+}
+
+function formatRating(rating) {
+    if(rating.value!="-1000"){
+        return Math.round(rating.value * 100) / 100
+    }else{
+        return ""
+    }
+}
 
 class ChampionsDetails extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             selectedLeagues: ["LEC", "LCK"],
-            patch: "12.6",
+            patch: "12.10",
             champion: "Aphelios",
             role: "BOT_LANE",
             championNames: [],
@@ -246,6 +353,15 @@ class ChampionsDetails extends React.Component {
                     <MenuItem value={"12.4"}>12.4</MenuItem>
                     <MenuItem value={"12.5"}>12.5</MenuItem>
                     <MenuItem value={"12.6"}>12.6</MenuItem>
+                      <MenuItem value={"12.7"}>12.7</MenuItem>
+                      <MenuItem value={"12.8"}>12.8</MenuItem>
+                      <MenuItem value={"12.9"}>12.9</MenuItem>
+                      <MenuItem value={"12.10"}>12.10</MenuItem>
+                      <MenuItem value={"12.11"}>12.11</MenuItem>
+                      <MenuItem value={"12.12"}>12.12</MenuItem>
+                      <MenuItem value={"12.13"}>12.13</MenuItem>
+                      <MenuItem value={"12.14"}>12.14</MenuItem>
+                      <MenuItem value={"12.15"}>12.15</MenuItem>
                   </Select>
                 </FormControl>
                 <FormControl sx={{m: 1, width: 200, mt: 3}}>
@@ -279,13 +395,13 @@ class ChampionsDetails extends React.Component {
                   </Select>
                 </FormControl>
             </div>
-            <div>
-                <Grid container direction={'row'} justifyContent="flex-start" alignItems="flex-end"  wrap='nowrap' style={{wrap:'nowrap', marginLeft:'16%', height: '100%', position:"relative", top:"0px"} } item xs elevation={3}>
+            <div style={{wrap:'nowrap', marginLeft:'16%'}}>
+                <Grid container direction={'row'} justifyContent="flex-start" alignItems="flex-end"  wrap='nowrap' style={{wrap:'nowrap', height: 800, width:5000} } item xs elevation={3}>
                     <ChampionMatchHistory params = {{patch : this.state.patch, selectedLeagues:this.state.selectedLeagues,champion : this.state.champion, role : this.state.role}}/>
-                    <Grid container item xs elevation={3} sx={{top:"0px", position :"relative"}} >
-                        <ChampionKeystoneSummary params = {{patch : this.state.patch, selectedLeagues:this.state.selectedLeagues,champion : this.state.champion, role : this.state.role}}/>
-                    </Grid>
+                    <ChampionKeystoneSummary params = {{patch : this.state.patch, selectedLeagues:this.state.selectedLeagues,champion : this.state.champion, role : this.state.role}}/>
                 </Grid>
+                <ChampionMatchups params = {{patch : this.state.patch, selectedLeagues:this.state.selectedLeagues,champion : this.state.champion, role : this.state.role, type : "ennemy"}}/>
+                <ChampionMatchups params = {{patch : this.state.patch, selectedLeagues:this.state.selectedLeagues,champion : this.state.champion, role : this.state.role, type : "ally"}}/>
             </div>
         </div>);
             }

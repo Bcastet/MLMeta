@@ -29,4 +29,10 @@ class TeamImagesSerializers(serializers.ModelSerializer):
 class ChampionsBuildPropertiesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChampionsBuildProperties
+        fields = ["keystones", "first_items"]
+
+
+class ChampionMatchupPropertiesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChampionMatchupProperties
         fields = '__all__'

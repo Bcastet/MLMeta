@@ -49,8 +49,8 @@ function App() {
     setValue(newValue);
     };
     let competitiveRatingsState = {
-        selectedLeagues: ["LEC","LCK"],
-        patch: "12.6",
+        selectedLeagues: ["MSI"],
+        patch: "12.8",
         rows: [],
         version : ""
     };

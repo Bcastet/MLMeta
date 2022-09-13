@@ -72,7 +72,7 @@ class ChampionsTierlist extends React.Component {
                         },
                         {headerName : 'Games',field: 'games', width: 60, justifyContent: "center", align: "center", headerAlign: "center"},
                         {field: 'winrate', headerName: "WR", width: 60, justifyContent: "center", renderCell: (params) => params.value.toLocaleString("en", {style: "percent"}), align: "center", headerAlign: "center"},
-                        {headerName : "Rating",field: 'rel_rate', width: 90, justifyContent: "center", renderCell: (params) => Math.round(params.value * 100) / 100, align: "center", headerAlign: "center"},
+                        {headerName : "Rating",field: 'rel_rate', width: 90, justifyContent: "center", renderCell: (params) => formatRating(params), align: "center", headerAlign: "center"},
                     ]}
                     rows={state.rows}
                     components={{
@@ -94,14 +94,21 @@ function CustomToolbar() {
   );
 }
 
+function formatRating(rating) {
+    if(rating.value!="-1000"){
+        return Math.round(rating.value * 100) / 100
+    }else{
+        return ""
+    }
+}
+
 
 class LeagueSelector extends React.Component {
     constructor(props) {
         super(props);
-        console.log(props.state)
         this.state = {
             selectedLeagues: ["LEC", "LCK"],
-            patch: "12.6",
+            patch: "12.10",
             rows: [],
             version: ""
         };
@@ -162,6 +169,15 @@ class LeagueSelector extends React.Component {
                         <MenuItem value={"12.4"}>12.4</MenuItem>
                         <MenuItem value={"12.5"}>12.5</MenuItem>
                         <MenuItem value={"12.6"}>12.6</MenuItem>
+                          <MenuItem value={"12.7"}>12.7</MenuItem>
+                          <MenuItem value={"12.8"}>12.8</MenuItem>
+                          <MenuItem value={"12.9"}>12.9</MenuItem>
+                          <MenuItem value={"12.10"}>12.10</MenuItem>
+                          <MenuItem value={"12.11"}>12.11</MenuItem>
+                          <MenuItem value={"12.12"}>12.12</MenuItem>
+                          <MenuItem value={"12.13"}>12.13</MenuItem>
+                          <MenuItem value={"12.14"}>12.14</MenuItem>
+                          <MenuItem value={"12.15"}>12.15</MenuItem>
                       </Select>
                     </FormControl>
         </div>
