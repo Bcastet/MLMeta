@@ -362,6 +362,9 @@ class ChampionsDetails extends React.Component {
                       <MenuItem value={"12.13"}>12.13</MenuItem>
                       <MenuItem value={"12.14"}>12.14</MenuItem>
                       <MenuItem value={"12.15"}>12.15</MenuItem>
+                      <MenuItem value={"12.16"}>12.16</MenuItem>
+                      <MenuItem value={"12.17"}>12.17</MenuItem>
+                      <MenuItem value={"12.18"}>12.18</MenuItem>
                   </Select>
                 </FormControl>
                 <FormControl sx={{m: 1, width: 200, mt: 3}}>
